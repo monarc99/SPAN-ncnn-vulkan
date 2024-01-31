@@ -14,7 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 
-project(upscayl-bin)
+project(span-ncnn-vulkan)
 
 cmake_minimum_required(VERSION 3.9)
 
@@ -274,9 +274,9 @@ compile_shader(realesrgan_postproc_tta.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
-add_executable(upscayl-bin main.cpp realesrgan.cpp)
+add_executable(span-ncnn-vulkan main.cpp realesrgan.cpp)
 
-add_dependencies(upscayl-bin generate-spirv)
+add_dependencies(span-ncnn-vulkan generate-spirv)
 
 set(REALESRGAN_LINK_LIBRARIES ncnn webp ${Vulkan_LIBRARY})
 
@@ -306,5 +306,5 @@ if(OPENMP_FOUND)
     list(APPEND REALESRGAN_LINK_LIBRARIES ${OpenMP_CXX_LIBRARIES})
 endif()
 
-target_link_libraries(upscayl-bin ${REALESRGAN_LINK_LIBRARIES} -static-libstdc++)
+target_link_libraries(span-ncnn-vulkan ${REALESRGAN_LINK_LIBRARIES} -static-libstdc++)
 
