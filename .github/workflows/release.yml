@@ -190,7 +190,7 @@ jobs:
           path: ${{ env.PACKAGENAME }}.zip
 
   release:
-    needs: [setup, ubuntu, macos, windows]
+    needs: [setup, ubuntu, windows]
     # needs: [setup, macos]
     runs-on: ubuntu-latest
     steps:
