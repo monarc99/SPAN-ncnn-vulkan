@@ -236,7 +236,7 @@ class span(nn.Module):
         num_in_ch=3,
         num_out_ch=3,
         feature_channels=48,
-        upscale=4,
+        upscale=2,
         bias=True,
         img_range=255.0,
         rgb_mean=(0.4488, 0.4371, 0.4040),
@@ -289,11 +289,10 @@ class span(nn.Module):
 
 model = span()
 model.eval()
-state_dict = torch.load("4x-ClearRealityV1.pth", map_location="cpu")
+state_dict = torch.load("2x_span_anime_pretrain.pth", map_location="cpu")
 
 model_state_dict = state_dict['params']
-model.load_state_dict(model_state_dict, strict=False)
-torch.save(model.state_dict(), "resaved_rife47.pth")
+model.load_state_dict(model_state_dict, strict=True)
 
 
 with torch.inference_mode():
