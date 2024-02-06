@@ -407,7 +407,7 @@ void *save(void *args)
         }
         if (success)
         {
-            fprintf(stderr, "");
+            fprintf(stderr, "Completed");
 
             if (verbose)
             {
