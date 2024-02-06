@@ -24,8 +24,7 @@ SPAN (Swift Parameter-free Attention Network for Efficient Super-Resolution)
 
 https://github.com/hongyuanyu/SPAN
 
-Huang, Zhewei and Zhang, Tianyuan and Heng, Wen and Shi, Boxin and Zhou, Shuchang
-
+Cheng Wan Hongyuan Yu Zhiqi Li Yihang Chen Yajun Zou Yuqing Liu Xuanwu Yin Kunlong Zu
 
 
 ## Usages
