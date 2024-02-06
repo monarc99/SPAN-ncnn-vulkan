@@ -102,14 +102,14 @@ static std::vector<int> parse_optarg_int_array(const char *optarg)
 
 static void print_usage()
 {
-    fprintf(stderr, "Usage: upscayl-bin -i infile -o outfile [options]...\n\n");
+    fprintf(stderr, "Usage: span-ncnn-vulkan -i infile -o outfile [options]...\n\n");
     fprintf(stderr, "  -h                   show this help\n");
     fprintf(stderr, "  -i input-path        input image path (jpg/png/webp) or directory\n");
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
     fprintf(stderr, "  -s scale             upscale ratio (can be 2, 3, 4. default=4)\n");
     fprintf(stderr, "  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu\n");
     fprintf(stderr, "  -m model-path        folder path to the pre-trained models. default=models\n");
-    fprintf(stderr, "  -n model-name        model name (default=realesr-animevideov3, can be realesr-animevideov3 | realesrgan-x4plus | realesrgan-x4plus-anime | realesrnet-x4plus)\n");
+    fprintf(stderr, "   -n model-name        model name (default=spanx4_ch48, can be spanx4_ch48 | spanx2_ch52 | spanx4_ch48 | spanx4_ch52)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -c cpu-only          use only CPU for upscaling, instead of vulkan\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
@@ -407,7 +407,7 @@ void *save(void *args)
         }
         if (success)
         {
-            fprintf(stderr, "Upscayl Successful\n");
+            fprintf(stderr, "");
 
             if (verbose)
             {
@@ -441,8 +441,11 @@ int main(int argc, char **argv)
     path_t outputpath;
     int scale = 4;
     std::vector<int> tilesize;
-    path_t model = PATHSTR("models");
-    path_t modelname = PATHSTR("realesr-animevideov3");
+    #if _WIN32
+    path_t model = PATHSTR("models\\SPAN");
+    #else
+    path_t model = PATHSTR("models/SPAN");
+    path_t modelname = PATHSTR("spanx4_ch48");
     std::vector<int> gpuid;
     int jobs_load = 1;
     std::vector<int> jobs_proc;
