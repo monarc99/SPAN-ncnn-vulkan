@@ -442,7 +442,7 @@ int main(int argc, char **argv)
     int scale = 4;
     std::vector<int> tilesize;
     #if _WIN32
-    path_t model = PATHSTR("models\\SPAN");
+    path_t model = PATHSTR("models\\SPAN\");
     #else
     path_t model = PATHSTR("models/SPAN");
     #endif
