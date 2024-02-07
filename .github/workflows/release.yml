@@ -191,7 +191,7 @@ jobs:
           Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
           Copy-Item -Verbose -Path "C:\windows\system32\vcomp140d.dll" -Destination "${{ env.PACKAGENAME }}"
           mkdir "${{ env.PACKAGENAME }}\models\"
-          Copy-Item -Verbose -Path "models\" -Destination "${{ env.PACKAGENAME }}\ -recurse -Force
+          Copy-Item -Verbose -Path "models\" -Destination "${{ env.PACKAGENAME }}\" -recurse -Force
           mkdir "${{ env.PACKAGENAME }}\custom_models\"
           Copy-Item -Verbose -Path "custom_models\" -Destination "${{ env.PACKAGENAME }}\" -recurse -Force
           7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
