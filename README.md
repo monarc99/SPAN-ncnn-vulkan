@@ -58,7 +58,7 @@ ffmpeg -i input.mp4 -vn -acodec copy audio.m4a
 # decode all frames
 ffmpeg -i input.mp4 input_frames/frame_%08d.png
 
-# interpolate 2x frame count
+# upscale 4x resolution
 ./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i input_frames -o output_frames
 
 # encode interpolated frames in 48fps with audio
