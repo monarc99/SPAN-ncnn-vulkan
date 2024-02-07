@@ -153,6 +153,13 @@ cmake --build . -j 4
 
 ![span](images/out0.png)
 
+### Upscale 2X with 2xHFA2kSPAN model
+
+```shell
+./span-ncnn-vulkan -m models/custom/ -n 2xHFA2kSPAN_27k -s 2 -i 0.png -o 2xHFA2kSPAN.png
+```
+
+![2xHFA2xSPAN](images/2xHFA2kSPAN.png)
 
 ## Original SPAN Project
 
