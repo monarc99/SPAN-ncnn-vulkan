@@ -441,11 +441,9 @@ int main(int argc, char **argv)
     path_t outputpath;
     int scale = 4;
     std::vector<int> tilesize;
-    #if _WIN32
-    path_t model = PATHSTR("models\\SPAN\\");
-    #else
-    path_t model = PATHSTR("models/SPAN");
-    #endif
+    
+    path_t model = PATHSTR("models");
+    
     path_t modelname = PATHSTR("spanx4_ch48");
     std::vector<int> gpuid;
     int jobs_load = 1;
