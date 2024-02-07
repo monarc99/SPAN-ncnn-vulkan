@@ -62,7 +62,7 @@ jobs:
           mkdir -p ${{ env.PACKAGENAME }}
           cp README.md LICENSE ${{ env.PACKAGENAME }}
           mkdir ${{ env.PACKAGENAME }}/models/
-          cp models/* ${{ env.PACKAGENAME }}/models/
+          cp -r models/* ${{ env.PACKAGENAME }}/models/
           cp build/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
           strip -g ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
           zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
