@@ -99,14 +99,14 @@ jobs:
         uses: actions/cache@v1
         with:
           path: "vulkan-mac-sdk"
-          key: "vulkan-mac-sdk"
+          key: vulkan-mac-sdk
       - name: vulkansdk
         if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
         run: |
           wget https://sdk.lunarg.com/sdk/download/$VK_VERSION/mac/vulkansdk-macos-$VK_VERSION.dmg?Human=true -O vulkansdk-macos-$VK_VERSION.dmg
           hdiutil attach vulkansdk-macos-$VK_VERSION.dmg
-          sudo /Volumes/vulkansdk-macos-$VK_VERSION/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/$VULKAN_SDK_MAC --accept-licenses --default-answer --confirm-command install
-          find $VULKAN_SDK_MAC -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+          sudo /Volumes/vulkansdk-macos-$VK_VERSION/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkan-mac-sdk --accept-licenses --default-answer --confirm-command install
+          find vulkan-mac-sdk -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
           hdiutil detach /Volumes/vulkansdk-macos-$VK_VERSION
       - name: build-x86_64
         run: |
@@ -115,8 +115,8 @@ jobs:
               -D OpenMP_C_FLAGS="-Xclang -fopenmp" -D OpenMP_CXX_FLAGS="-Xclang -fopenmp" \
               -D OpenMP_C_LIB_NAMES="libomp" -D OpenMP_CXX_LIB_NAMES="libomp" \
               -D OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-              -D Vulkan_INCLUDE_DIR=`pwd`/../$VULKAN_SDK_MAC/$MOLTEN_VK_INCLUDE_PATH \
-              -D Vulkan_LIBRARY=`pwd`/../$VULKAN_SDK_MAC/$MOLTEN_VK_LIB_PATH \
+              -D Vulkan_INCLUDE_DIR=`pwd`/../vulkan-mac-sdk/$MOLTEN_VK_INCLUDE_PATH \
+              -D Vulkan_LIBRARY=`pwd`/../vulkan-mac-sdk/$MOLTEN_VK_LIB_PATH \
               ../src
           cmake --build . -j 3
       - name: install-openmp for arm64
@@ -133,8 +133,8 @@ jobs:
               -D OpenMP_C_FLAGS="-Xclang -fopenmp" -D OpenMP_CXX_FLAGS="-Xclang -fopenmp" \
               -D OpenMP_C_LIB_NAMES="libomp" -D OpenMP_CXX_LIB_NAMES="libomp" \
               -D OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-              -D Vulkan_INCLUDE_DIR=`pwd`/../$VULKAN_SDK_MAC/$MOLTEN_VK_INCLUDE_PATH \
-              -D Vulkan_LIBRARY=`pwd`/../$VULKAN_SDK_MAC/$MOLTEN_VK_LIB_PATH \
+              -D Vulkan_INCLUDE_DIR=`pwd`/../vulkan-mac-sdk/$MOLTEN_VK_INCLUDE_PATH \
+              -D Vulkan_LIBRARY=`pwd`/../vulkan-mac-sdk/$MOLTEN_VK_LIB_PATH \
               ../src
           cmake --build . -j 3
       - name: package
