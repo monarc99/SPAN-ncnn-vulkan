@@ -29,7 +29,7 @@ Cheng Wan Hongyuan Yu Zhiqi Li Yihang Chen Yajun Zou Yuqing Liu Xuanwu Yin Kunlo
 
 ## Usages
 
-Input two frame images, output one interpolated frame image.
+Input one image, output one upscaled frame image.
 
 ### Example Commands
 
