@@ -61,6 +61,10 @@ jobs:
         run: |
           mkdir -p ${{ env.PACKAGENAME }}
           cp README.md LICENSE ${{ env.PACKAGENAME }}
+          mkdir ${{ env.PACKAGENAME }}/custom_models/
+          mkdir ${{ env.PACKAGENAME }}/models/
+          cp models/* ${{ env.PACKAGENAME }}/models/
+          cp custom_models/* ${{ env.PACKAGENAME }}/custom_models/
           cp build/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
           strip -g ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
           zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -139,7 +143,11 @@ jobs:
         # cp -r models/* ${{ env.PACKAGENAME }}
         run: |
           mkdir -p ${{ env.PACKAGENAME }}
+          mkdir ${{ env.PACKAGENAME }}/custom_models/
+          mkdir ${{ env.PACKAGENAME }}/models/
           cp README.md LICENSE ${{ env.PACKAGENAME }}
+          cp models/* ${{ env.PACKAGENAME }}/models/
+          cp custom_models/* ${{ env.PACKAGENAME }}/custom_models/
           lipo -create build-x86_64/${{ needs.setup.outputs.APPNAME }} build-arm64/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
           strip ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
           zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -184,6 +192,10 @@ jobs:
           Copy-Item -Verbose -Path "build\Release\${{ needs.setup.outputs.APPNAME }}.exe" -Destination "${{ env.PACKAGENAME }}"
           Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
           Copy-Item -Verbose -Path "C:\windows\system32\vcomp140d.dll" -Destination "${{ env.PACKAGENAME }}"
+          mkdir "${{ env.PACKAGENAME }}\models\"
+          Copy-Item -Verbose -Path "models\" -Destination "${{ env.PACKAGENAME }}\" -recurse -Force
+          mkdir "${{ env.PACKAGENAME }}\custom_models\"
+          Copy-Item -Verbose -Path "custom_models\" -Destination "${{ env.PACKAGENAME }}\" -recurse -Force
           7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
       - name: upload
         uses: actions/upload-artifact@v2
