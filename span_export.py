@@ -236,7 +236,7 @@ class span(nn.Module):
         num_in_ch=3,
         num_out_ch=3,
         feature_channels=48,
-        upscale=2,
+        upscale=4,
         bias=True,
         img_range=255.0,
         rgb_mean=(0.4488, 0.4371, 0.4040),
@@ -289,7 +289,7 @@ class span(nn.Module):
 
 model = span()
 model.eval()
-state_dict = torch.load("2x_span_anime_pretrain.pth", map_location="cpu")
+state_dict = torch.load("4xNomos8k_span_otf_weak.pth", map_location="cpu")
 
 model_state_dict = state_dict['params']
 model.load_state_dict(model_state_dict, strict=True)
@@ -297,7 +297,8 @@ model.load_state_dict(model_state_dict, strict=True)
 
 with torch.inference_mode():
     
-
+    mod = torch.jit.trace(model,torch.rand(1, 3, 256, 256))
+    mod.save('4xNomos8k_span_otf_weak.pt')
     torch.onnx.export(
         model,
         torch.rand(1, 3, 256, 256),
