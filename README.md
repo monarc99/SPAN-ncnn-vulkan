@@ -6,7 +6,7 @@
 - <a href="https://github.com/Phhofm/models"> 2xHFA2kSpan (2x)</a> by Phhofm
 - <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-strong"> 4x-Nomos8k-span-otf-strong (4x)</a> by Helaman
 - <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-medium"> 4x-Nomos8k-span-otf-medium (4x)</a> by Helaman
-- <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-weak"> 4x-Nomos8k-span-otf-weak (4x)</a> by Helaman
+- <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-weak"> 4x-Nomos8k-span-otf-weak (4x)</a> by Helaman <br/>
 ncnn implementation of SPAN, Swift Parameter-free Attention Network for Efficient Super-Resolution
 
 span-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework.
