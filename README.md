@@ -36,13 +36,13 @@ Input one image, output one upscaled frame image.
 ### Example Commands
 
 ```shell
-./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i 0.jpg  -o 01.jpg
-./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i input_frames/ -o output_frames/
+./span-ncnn-vulkan -m models/ -n spanx4_ch48 -s 4 -i 0.jpg  -o 01.jpg
+./span-ncnn-vulkan -m models/ -n spanx4_ch48 -s 4 -i input_frames/ -o output_frames/
 ```
 
 Example below runs on CPU, Discrete GPU, and Integrated GPU all at the same time. Uses 2 threads for image decoding, 4 threads for one CPU worker, 4 threads for another CPU worker, 2 threads for discrete GPU, 1 thread for integrated GPU, and 4 threads for image encoding.
 ```shell
-./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i input_frames/ -o output_frames/ -g -1,-1,0,1 -j 2:4,4,2,1:4
+./span-ncnn-vulkan -m models/ -n spanx4_ch48 -s 4 -i input_frames/ -o output_frames/ -g -1,-1,0,1 -j 2:4,4,2,1:4
 ```
 
 ### Video Upscaling with FFmpeg
@@ -61,7 +61,7 @@ ffmpeg -i input.mp4 -vn -acodec copy audio.m4a
 ffmpeg -i input.mp4 input_frames/frame_%08d.png
 
 # upscale 4x resolution
-./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i input_frames -o output_frames
+./span-ncnn-vulkan -m models/ -n spanx4_ch48 -s 4 -i input_frames -o output_frames
 
 # encode interpolated frames in 48fps with audio
 ffmpeg -framerate 24 -i output_frames/%08d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
@@ -150,7 +150,7 @@ cmake --build . -j 4
 ### Upscale 4X with spanx4_ch48 model
 
 ```shell
-./span-ncnn-vulkan -m models/SPAN/ -n spanx4_ch48 -s 4 -i 0.png -o out.png
+./span-ncnn-vulkan -m models/ -n spanx4_ch48 -s 4 -i 0.png -o out.png
 ```
 
 ![span](images/out0.png)
@@ -158,7 +158,7 @@ cmake --build . -j 4
 ### Upscale 2X with 2xHFA2kSPAN model
 
 ```shell
-./span-ncnn-vulkan -m models/custom/ -n 2xHFA2kSPAN_27k -s 2 -i 0.png -o 2xHFA2kSPAN.png
+./span-ncnn-vulkan -m custom_models/ -n 2xHFA2kSPAN_27k -s 2 -i 0.png -o 2xHFA2kSPAN.png
 ```
 
 ![2xHFA2xSPAN](images/2xHFA2kSPAN.png)
