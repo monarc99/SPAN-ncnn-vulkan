@@ -1,329 +1,341 @@
-# https://github.com/muslll/neosr/blob/master/neosr/archs/cugan_arch.py
-# https://github.com/bilibili/ailab/blob/main/Real-CUGAN/VapourSynth/upcunet_v3_vs.py
+#https://github.com/chaiNNer-org/spandrel/blob/4976eed57ac60bc939fb349f65783bf50fbb40e5/libs/spandrel/spandrel/util/__init__.py#
+#https://github.com/muslll/neosr/blob/master/neosr/archs/span_arch.py
 
+
+
+from collections import OrderedDict
 
 import torch
-from torch import nn as nn
-from torch.nn import functional as F
+import torch.nn.functional as F
+from torch import nn
+training = False
+upscale=4
+
+def _make_pair(value):
+    if isinstance(value, int):
+        value = (value,) * 2
+    return value
 
 
-class SEBlock(nn.Module):
-    def __init__(self, in_channels, reduction=8, bias=False):
-        super(SEBlock, self).__init__()
-        self.conv1 = nn.Conv2d(
-            in_channels, in_channels // reduction, 1, 1, 0, bias=bias
-        )
-        self.conv2 = nn.Conv2d(
-            in_channels // reduction, in_channels, 1, 1, 0, bias=bias
-        )
-
-    def forward(self, x):
-        if "Half" in x.type():
-            x0 = torch.mean(x.float(), dim=(2, 3), keepdim=True).half()
-        else:
-            x0 = torch.mean(x, dim=(2, 3), keepdim=True)
-        x0 = self.conv1(x0)
-        x0 = F.relu(x0, inplace=True)
-        x0 = self.conv2(x0)
-        x0 = torch.sigmoid(x0)
-        x = torch.mul(x, x0)
-        return x
-
-    def forward_mean(self, x, x0):
-        x0 = self.conv1(x0)
-        x0 = F.relu(x0, inplace=True)
-        x0 = self.conv2(x0)
-        x0 = torch.sigmoid(x0)
-        x = torch.mul(x, x0)
-        return x
+def conv_layer(in_channels,
+               out_channels,
+               kernel_size,
+               bias=True):
+    """
+    Re-write convolution layer for adaptive `padding`.
+    """
+    kernel_size = _make_pair(kernel_size)
+    padding = (int((kernel_size[0] - 1) / 2),
+               int((kernel_size[1] - 1) / 2))
+    return nn.Conv2d(in_channels,
+                     out_channels,
+                     kernel_size,
+                     padding=padding,
+                     bias=bias)
 
 
-class UNetConv(nn.Module):
-    def __init__(self, in_channels, mid_channels, out_channels, se):
-        super(UNetConv, self).__init__()
+def activation(act_type, inplace=True, neg_slope=0.05, n_prelu=1):
+    """
+    Activation functions for ['relu', 'lrelu', 'prelu'].
+    Parameters
+    ----------
+    act_type: str
+        one of ['relu', 'lrelu', 'prelu'].
+    inplace: bool
+        whether to use inplace operator.
+    neg_slope: float
+        slope of negative region for `lrelu` or `prelu`.
+    n_prelu: int
+        `num_parameters` for `prelu`.
+    ----------
+    """
+    act_type = act_type.lower()
+    if act_type == 'relu':
+        layer = nn.ReLU(inplace)
+    elif act_type == 'lrelu':
+        layer = nn.LeakyReLU(neg_slope, inplace)
+    elif act_type == 'prelu':
+        layer = nn.PReLU(num_parameters=n_prelu, init=neg_slope)
+    else:
+        raise NotImplementedError(
+            'activation layer [{:s}] is not found'.format(act_type))
+    return layer
+
+
+def sequential(*args):
+    """
+    Modules will be added to the a Sequential Container in the order they
+    are passed.
+
+    Parameters
+    ----------
+    args: Definition of Modules in order.
+    -------
+    """
+    if len(args) == 1:
+        if isinstance(args[0], OrderedDict):
+            raise NotImplementedError(
+                'sequential does not support OrderedDict input.')
+        return args[0]
+    modules = []
+    for module in args:
+        if isinstance(module, nn.Sequential):
+            for submodule in module.children():
+                modules.append(submodule)
+        elif isinstance(module, nn.Module):
+            modules.append(module)
+    return nn.Sequential(*modules)
+
+
+def pixelshuffle_block(in_channels,
+                       out_channels,
+                       upscale_factor=2,
+                       kernel_size=3):
+    """
+    Upsample features according to `upscale_factor`.
+    """
+    conv = conv_layer(in_channels,
+                      out_channels * (upscale_factor ** 2),
+                      kernel_size)
+    pixel_shuffle = nn.PixelShuffle(upscale_factor)
+    return sequential(conv, pixel_shuffle)
+
+class Conv3XC(nn.Module):
+    def __init__(self, c_in, c_out, gain1=1, gain2=0, s=1, bias=True, relu=False):
+        super(Conv3XC, self).__init__()
+        self.weight_concat = None
+        self.bias_concat = None
+        self.update_params_flag = False
+        self.stride = s
+        self.has_relu = relu
+        gain = gain1
+        self.training = training
+
+        self.sk = nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=1, padding=0, stride=s, bias=bias)
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, mid_channels, 3, 1, 0),
-            nn.LeakyReLU(0.1, inplace=True),
-            nn.Conv2d(mid_channels, out_channels, 3, 1, 0),
-            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(in_channels=c_in, out_channels=c_in * gain, kernel_size=1, padding=0, bias=bias),
+            nn.Conv2d(in_channels=c_in * gain, out_channels=c_out * gain, kernel_size=3, stride=s, padding=0, bias=bias),
+            nn.Conv2d(in_channels=c_out * gain, out_channels=c_out, kernel_size=1, padding=0, bias=bias),
         )
-        if se:
-            self.seblock = SEBlock(out_channels, reduction=8, bias=True)
-        else:
-            self.seblock = None
+
+        self.eval_conv = nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=3, padding=1, stride=s, bias=bias)
+
+        if self.training is False:
+            self.eval_conv.weight.requires_grad = False
+            self.eval_conv.bias.requires_grad = False
+            self.update_params()
+
+    def update_params(self):
+        w1 = self.conv[0].weight.data.clone().detach()
+        b1 = self.conv[0].bias.data.clone().detach()
+        w2 = self.conv[1].weight.data.clone().detach()
+        b2 = self.conv[1].bias.data.clone().detach()
+        w3 = self.conv[2].weight.data.clone().detach()
+        b3 = self.conv[2].bias.data.clone().detach()
+
+        w = F.conv2d(w1.flip(2, 3).permute(1, 0, 2, 3), w2, padding=2, stride=1).flip(2, 3).permute(1, 0, 2, 3)
+        b = (w2 * b1.reshape(1, -1, 1, 1)).sum((1, 2, 3)) + b2
+
+        self.weight_concat = F.conv2d(w.flip(2, 3).permute(1, 0, 2, 3), w3, padding=0, stride=1).flip(2, 3).permute(1, 0, 2, 3)
+        self.bias_concat = (w3 * b.reshape(1, -1, 1, 1)).sum((1, 2, 3)) + b3
+
+        sk_w = self.sk.weight.data.clone().detach()
+        sk_b = self.sk.bias.data.clone().detach()
+        target_kernel_size = 3
+
+        H_pixels_to_pad = (target_kernel_size - 1) // 2
+        W_pixels_to_pad = (target_kernel_size - 1) // 2
+        sk_w = F.pad(sk_w, [H_pixels_to_pad, H_pixels_to_pad, W_pixels_to_pad, W_pixels_to_pad])
+
+        self.weight_concat = self.weight_concat + sk_w
+        self.bias_concat = self.bias_concat + sk_b
+
+        self.eval_conv.weight.data = self.weight_concat
+        self.eval_conv.bias.data = self.bias_concat
+
 
     def forward(self, x):
-        z = self.conv(x)
-        if self.seblock is not None:
-            z = self.seblock(z)
-        return z
-
-
-class UNet1(nn.Module):
-    def __init__(self, in_channels, out_channels, deconv):
-        super(UNet1, self).__init__()
-        self.conv1 = UNetConv(in_channels, 32, 64, se=False)
-        self.conv1_down = nn.Conv2d(64, 64, 2, 2, 0)
-        self.conv2 = UNetConv(64, 128, 64, se=True)
-        self.conv2_up = nn.ConvTranspose2d(64, 64, 2, 2, 0)
-        self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)
-
-        if deconv:
-            self.conv_bottom = nn.ConvTranspose2d(64, out_channels, 4, 2, 3)
+        if self.training:
+            pad = 1
+            x_pad = F.pad(x, (pad, pad, pad, pad), "constant", 0)
+            out = self.conv(x_pad) + self.sk(x)
         else:
-            self.conv_bottom = nn.Conv2d(64, out_channels, 3, 1, 0)
+            self.update_params()
+            out = self.eval_conv(x)
 
-        for m in self.modules():
-            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+        if self.has_relu:
+            out = F.leaky_relu(out, negative_slope=0.05)
+        return out
+
+class SPAB(nn.Module):
+    def __init__(self,
+                 in_channels,
+                 mid_channels=None,
+                 out_channels=None,
+                 bias=False):
+        super(SPAB, self).__init__()
+        if mid_channels is None:
+            mid_channels = in_channels
+        if out_channels is None:
+            out_channels = in_channels
+
+        self.in_channels = in_channels
+        self.c1_r = Conv3XC(in_channels, mid_channels, gain1=2, s=1)
+        self.c2_r = Conv3XC(mid_channels, mid_channels, gain1=2, s=1)
+        self.c3_r = Conv3XC(mid_channels, out_channels, gain1=2, s=1)
+        self.act1 = torch.nn.SiLU(inplace=True)
+        self.act2 = activation('lrelu', neg_slope=0.1, inplace=True)
 
     def forward(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2(x2)
-        x2 = self.conv2_up(x2)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
+        out1 = (self.c1_r(x))
+        out1_act = self.act1(out1)
 
-        x1 = F.pad(x1, (-4, -4, -4, -4))
-        x3 = self.conv3(x1 + x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        z = self.conv_bottom(x3)
-        return z
+        out2 = (self.c2_r(out1_act))
+        out2_act = self.act1(out2)
 
-    def forward_a(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2.conv(x2)
-        return x1, x2
+        out3 = (self.c3_r(out2_act))
 
-    def forward_b(self, x1, x2):
-        x2 = self.conv2_up(x2)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
+        sim_att = torch.sigmoid(out3) - 0.5
+        out = (out3 + x) * sim_att
 
-        x1 = F.pad(x1, (-4, -4, -4, -4))
-        x3 = self.conv3(x1 + x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        z = self.conv_bottom(x3)
-        return z
+        return out, out1, sim_att
 
+class span(nn.Module):
+    """
+    Swift Parameter-free Attention Network for Efficient Super-Resolution
+    """
 
-class UNet1x3(nn.Module):
-    def __init__(self, in_channels, out_channels, deconv):
-        super(UNet1x3, self).__init__()
-        self.conv1 = UNetConv(in_channels, 32, 64, se=False)
-        self.conv1_down = nn.Conv2d(64, 64, 2, 2, 0)
-        self.conv2 = UNetConv(64, 128, 64, se=True)
-        self.conv2_up = nn.ConvTranspose2d(64, 64, 2, 2, 0)
-        self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)
+    def __init__(self,
+                 num_in_ch=3,
+                 num_out_ch=3,
+                 feature_channels=48,
+                 upscale=upscale,
+                 bias=True,
+                 norm=False,
+                 img_range=1.0,
+                 rgb_mean=(0.5, 0.5, 0.5)
+                 ):
+        super(span, self).__init__()
 
-        if deconv:
-            self.conv_bottom = nn.ConvTranspose2d(64, out_channels, 5, 3, 2)
+        in_channels = num_in_ch
+        out_channels = num_out_ch
+        self.img_range = img_range
+        self.mean = torch.Tensor(rgb_mean).view(1, 3, 1, 1)
+
+        self.no_norm: torch.Tensor | None
+        if not norm:
+            self.register_buffer("no_norm", torch.zeros(1))
         else:
-            self.conv_bottom = nn.Conv2d(64, out_channels, 3, 1, 0)
+            self.no_norm = None
 
-        for m in self.modules():
-            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+        self.conv_1 = Conv3XC(in_channels, feature_channels, gain1=2, s=1)
+        self.block_1 = SPAB(feature_channels, bias=bias)
+        self.block_2 = SPAB(feature_channels, bias=bias)
+        self.block_3 = SPAB(feature_channels, bias=bias)
+        self.block_4 = SPAB(feature_channels, bias=bias)
+        self.block_5 = SPAB(feature_channels, bias=bias)
+        self.block_6 = SPAB(feature_channels, bias=bias)
+
+        self.conv_cat = conv_layer(feature_channels * 4, feature_channels, kernel_size=1, bias=True)
+        self.conv_2 = Conv3XC(feature_channels, feature_channels, gain1=2, s=1)
+
+        self.upsampler = pixelshuffle_block(feature_channels, out_channels, upscale_factor=upscale)
+
+    @property
+    def is_norm(self):
+        return self.no_norm is None
 
     def forward(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2(x2)
-        x2 = self.conv2_up(x2)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
+        if self.is_norm:
+            self.mean = self.mean.type_as(x)
+            x = (x - self.mean) * self.img_range
 
-        x1 = F.pad(x1, (-4, -4, -4, -4))
-        x3 = self.conv3(x1 + x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        z = self.conv_bottom(x3)
-        return z
+        out_feature = self.conv_1(x)
 
-    def forward_a(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2.conv(x2)
-        return x1, x2
+        out_b1, _, att1 = self.block_1(out_feature)
+        out_b2, _, att2 = self.block_2(out_b1)
+        out_b3, _, att3 = self.block_3(out_b2)
 
-    def forward_b(self, x1, x2):
-        x2 = self.conv2_up(x2)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
+        out_b4, _, att4 = self.block_4(out_b3)
+        out_b5, _, att5 = self.block_5(out_b4)
+        out_b6, out_b5_2, att6 = self.block_6(out_b5)
 
-        x1 = F.pad(x1, (-4, -4, -4, -4))
-        x3 = self.conv3(x1 + x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        z = self.conv_bottom(x3)
-        return z
+        out_b6 = self.conv_2(out_b6)
+        out = self.conv_cat(torch.cat([out_feature, out_b6, out_b1, out_b5_2], 1))
+        output = self.upsampler(out)
 
+        return output
+import math
 
-class UNet2(nn.Module):
-    def __init__(self, in_channels, out_channels, deconv):
-        super(UNet2, self).__init__()
+# code stolen from spandrel
+def get_scale_and_output_channels(x: int, input_channels: int) -> tuple[int, int]:
+    """
+    Returns a scale and number of output channels such that `scale**2 * out_nc = x`.
 
-        self.conv1 = UNetConv(in_channels, 32, 64, se=False)
-        self.conv1_down = nn.Conv2d(64, 64, 2, 2, 0)
-        self.conv2 = UNetConv(64, 64, 128, se=True)
-        self.conv2_down = nn.Conv2d(128, 128, 2, 2, 0)
-        self.conv3 = UNetConv(128, 256, 128, se=True)
-        self.conv3_up = nn.ConvTranspose2d(128, 128, 2, 2, 0)
-        self.conv4 = UNetConv(128, 64, 64, se=True)
-        self.conv4_up = nn.ConvTranspose2d(64, 64, 2, 2, 0)
-        self.conv5 = nn.Conv2d(64, 64, 3, 1, 0)
+    This is commonly used for pixelshuffel layers.
+    """
+    # Unfortunately, we do not have enough information to determine both the scale and
+    # number output channels correctly *in general*. However, we can make some
+    # assumptions to make it good enough.
+    #
+    # What we know:
+    # - x = scale * scale * output_channels
+    # - output_channels is likely equal to input_channels
+    # - output_channels and input_channels is likely 1, 3, or 4
+    # - scale is likely 1, 2, 4, or 8
 
-        if deconv:
-            self.conv_bottom = nn.ConvTranspose2d(64, out_channels, 4, 2, 3)
-        else:
-            self.conv_bottom = nn.Conv2d(64, out_channels, 3, 1, 0)
+    def is_square(n: int) -> bool:
+        return math.sqrt(n) == int(math.sqrt(n))
 
-        for m in self.modules():
-            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+    # just try out a few candidates and see which ones fulfill the requirements
+    candidates = [input_channels, 3, 4, 1]
+    for c in candidates:
+        if x % c == 0 and is_square(x // c):
+            return int(math.sqrt(x // c)), c
 
-    def forward(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2(x2)
-
-        x3 = self.conv2_down(x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        x3 = self.conv3(x3)
-        x3 = self.conv3_up(x3)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-
-        x2 = F.pad(x2, (-4, -4, -4, -4))
-        x4 = self.conv4(x2 + x3)
-        x4 = self.conv4_up(x4)
-        x4 = F.leaky_relu(x4, 0.1, inplace=True)
-
-        x1 = F.pad(x1, (-16, -16, -16, -16))
-        x5 = self.conv5(x1 + x4)
-        x5 = F.leaky_relu(x5, 0.1, inplace=True)
-
-        z = self.conv_bottom(x5)
-        return z
-
-    def forward_a(self, x):
-        x1 = self.conv1(x)
-        x2 = self.conv1_down(x1)
-        x2 = F.leaky_relu(x2, 0.1, inplace=True)
-        x2 = self.conv2.conv(x2)
-        return x1, x2
-
-    def forward_b(self, x2):
-        x3 = self.conv2_down(x2)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-        x3 = self.conv3.conv(x3)
-        return x3
-
-    def forward_c(self, x2, x3):
-        x3 = self.conv3_up(x3)
-        x3 = F.leaky_relu(x3, 0.1, inplace=True)
-
-        x2 = F.pad(x2, (-4, -4, -4, -4))
-        x4 = self.conv4.conv(x2 + x3)
-        return x4
-
-    def forward_d(self, x1, x4):
-        x4 = self.conv4_up(x4)
-        x4 = F.leaky_relu(x4, 0.1, inplace=True)
-
-        x1 = F.pad(x1, (-16, -16, -16, -16))
-        x5 = self.conv5(x1 + x4)
-        x5 = F.leaky_relu(x5, 0.1, inplace=True)
-
-        z = self.conv_bottom(x5)
-        return z
+    raise AssertionError(
+        f"Expected output channels to be either 1, 3, or 4."
+        f" Could not find a pair (scale, out_nc) such that `scale**2 * out_nc = {x}`"
+    )
 
 
-class cugan(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, scale=2, pro_mode=True):
-        super(cugan, self).__init__()
-        self.scale = scale
-        self.pro_mode = pro_mode
+model_str = input("Paste model path/name here: ")
 
-        if self.scale == 1:
-            raise ValueError("1x scale ratio is unsupported. Please use 2x, 3x or 4x.")
+state_dict = torch.load(model_str, map_location="cpu")  
+state_dict = state_dict['params']
+num_in_ch: int = 3
+num_out_ch: int = 3
+feature_channels: int = 48
+upscale: int = 4
+bias = True  # unused internally
+norm = True
+img_range = 255.0  # cannot be deduced from state_dict
+rgb_mean = (0.4488, 0.4371, 0.4040)  # cannot be deduced from state_dict
 
-        if self.scale == 2:
-            self.unet1 = UNet1(in_channels, out_channels, deconv=True)
-            self.unet2 = UNet2(in_channels, out_channels, deconv=False)
+num_in_ch = state_dict["conv_1.sk.weight"].shape[1]
+feature_channels = state_dict["conv_1.sk.weight"].shape[0]
 
-        if self.scale == 3:
-            self.unet1 = UNet1x3(in_channels, out_channels, deconv=True)
-            self.unet2 = UNet2(in_channels, out_channels, deconv=False)
+upscale, num_out_ch = get_scale_and_output_channels(
+            state_dict["upsampler.0.weight"].shape[0],
+            num_in_ch,
+        )
 
-        if self.scale == 4:
-            self.unet1 = UNet1(in_channels, 64, deconv=True)
-            self.unet2 = UNet2(64, 64, deconv=False)
-            self.ps = nn.PixelShuffle(2)
-            self.conv_final = nn.Conv2d(64, 12, 3, 1, padding=0, bias=True)
 
-    def forward(self, x):
-        x = torch.clamp(x, 0, 1)
 
-        if self.pro_mode:
-            x = (x * 0.7) + 0.15
-
-        n, c, h0, w0 = x.shape
-        x00 = x
-
-        if self.scale == 3:
-            ph = ((h0 - 1) // 4 + 1) * 4
-            pw = ((w0 - 1) // 4 + 1) * 4
-        else:
-            ph = ((h0 - 1) // 2 + 1) * 2
-            pw = ((w0 - 1) // 2 + 1) * 2
-
-        if self.scale == 2:
-            x = F.pad(x, (18, 18 + pw - w0, 18, 18 + ph - h0), "reflect")
-        if self.scale == 3:
-            x = F.pad(x, (14, 14 + pw - w0, 14, 14 + ph - h0), "reflect")
-        if self.scale == 4:
-            x = F.pad(x, (19, 19 + pw - w0, 19, 19 + ph - h0), "reflect")
-
-        x = self.unet1.forward(x)
-        x0 = self.unet2.forward(x)
-        x1 = F.pad(x, (-20, -20, -20, -20))
-        x = torch.add(x0, x1)
-
-        if self.scale == 4:
-            x = self.conv_final(x)
-            x = F.pad(x, (-1, -1, -1, -1))
-            x = self.ps(x)
-
-        if w0 != pw or h0 != ph:
-            x = x[:, :, : h0 * self.scale, : w0 * self.scale]
-
-        if self.scale == 4:
-            x += F.interpolate(x00, scale_factor=4, mode="nearest")
-
-        if self.pro_mode:
-            x = (x - 0.15) / 0.7
-
-        return x
-model = span()
+model = span(num_in_ch=num_in_ch,
+             num_out_ch=num_out_ch,
+             feature_channels=feature_channels,
+             upscale=upscale,
+             bias=bias,
+             norm=norm,
+             img_range=img_range,
+             rgb_mean=rgb_mean
+             )
 model.eval()
-state_dict = torch.load("ModernSpanimationV1.pth", map_location="cpu")
+model.load_state_dict(state_dict, strict=True)
 
-model_state_dict = state_dict['params']
-model.load_state_dict(model_state_dict, strict=True)
-
+#print(feature_channels,upscale,j)
+print("Exporting...")
 
 with torch.inference_mode():
     mod = torch.jit.trace( model,
@@ -341,4 +353,5 @@ with torch.inference_mode():
         #        "input": {0: "batch_size", 2: "width", 3: "height"},
         #        "output": {0: "batch_size", 2: "width", 3: "height"},
         #    }
-    ) 
+    )
+
