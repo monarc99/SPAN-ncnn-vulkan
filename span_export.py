@@ -8,6 +8,7 @@ from collections import OrderedDict
 import torch
 import torch.nn.functional as F
 from torch import nn
+import sys
 training = False
 upscale=4
 
@@ -298,8 +299,11 @@ def get_scale_and_output_channels(x: int, input_channels: int) -> tuple[int, int
         f" Could not find a pair (scale, out_nc) such that `scale**2 * out_nc = {x}`"
     )
 
+try:
+    model_str = sys.argv[1]
+except:
 
-model_str = input("Paste model path/name here: ")
+    model_str = input("Paste model path/name here: ")
 
 state_dict = torch.load(model_str, map_location="cpu")  
 state_dict = state_dict['params']
