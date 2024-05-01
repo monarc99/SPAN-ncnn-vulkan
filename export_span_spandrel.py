@@ -1,12 +1,27 @@
 from spandrel import ModelLoader
 import torch
-
+import sys
+import os
 # load a model from disk
-model_str = "2x_ModernSpanimationV1.pth"
+try:
+    model_str = sys.argv[1]
+except:
+    model_str = input("Paste model path/name here: ")
+
+conversion_path = "converted_models/"
+
 model = ModelLoader().load_from_file(model_str)
 
 
+
+if not os.path.exists(conversion_path): os.mkdir(conversion_path)
+
+# get model attributes
+scale = model.scale
+
+
 model = model.model
+
 state_dict = model.state_dict()
 
 model.eval()
@@ -17,11 +32,11 @@ print("Exporting...")
 with torch.inference_mode():
     mod = torch.jit.trace( model,
         torch.rand(1, 3, 256, 256))
-    mod.save('ModernSpanimationV1.pt')
+    mod.save(os.path.join(f'{conversion_path}',f'{scale}x_{model_str}.pt'))
     torch.onnx.export(
         model,
         torch.rand(1, 3, 256, 256),
-        "ModernSpanimationV1.onnx",
+        os.path.join(f'{conversion_path}',f'{scale}x_{model_str}.onnx'),
         verbose=False,
         opset_version=17,
         input_names=["input"],
