@@ -31,11 +31,11 @@ print("Exporting...")
 
 with torch.inference_mode():
     mod = torch.jit.trace( model,
-        torch.rand(1, 3, 20, 20))
+        torch.rand(1, 3, 32, 32))
     mod.save(os.path.join(f'{conversion_path}',f'{scale}x_{model_str}.pt'))
     torch.onnx.export(
         model,
-        torch.rand(1, 3, 20, 20),
+        torch.rand(1, 3, 32, 32),
         os.path.join(f'{conversion_path}',f'{scale}x_{model_str}.onnx'),
         verbose=False,
         opset_version=17,
