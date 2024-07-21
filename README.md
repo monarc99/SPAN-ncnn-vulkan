@@ -7,7 +7,11 @@
 - <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-strong"> 4x-Nomos8k-span-otf-strong (4x)</a> by Helaman
 - <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-medium"> 4x-Nomos8k-span-otf-medium (4x)</a> by Helaman
 - <a href="https://openmodeldb.info/models/4x-Nomos8k-span-otf-weak"> 4x-Nomos8k-span-otf-weak (4x)</a> by Helaman <br/>
-
+- <a href="https://openmodeldb.info/models/4x-IllustrationJaNai-V1-ESRGAN"> 4/2x_IllustrationJaNai_V1_ESRGAN (2x and 4x)</a> by the database <br/>
+- <a href="https://openmodeldb.info/models/2x-AnimeJaNai-HD-V3-Compact"> 2x_AnimeJaNai_HD_V3_Compact (2x)</a> by the database <br/>
+- <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-Compact"> 2x_AnimeJaNai v2 Compact (2x)</a> by the database <br/>
+- <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-UltraCompact"> 2x_AnimeJaNai v2 UltraCompact (2x)</a> by the database <br/>
+- <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-SuperUltraCompact"> 2x_AnimeJaNai v2 SuperUltraCompact (2x)</a> by the database <br/>
 
 ncnn implementation of SPAN, Swift Parameter-free Attention Network for Efficient Super-Resolution
 
