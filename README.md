@@ -12,6 +12,7 @@
 - <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-Compact"> 2x_AnimeJaNai v2 Compact (2x)</a> by the database <br/>
 - <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-UltraCompact"> 2x_AnimeJaNai v2 UltraCompact (2x)</a> by the database <br/>
 - <a href="https://openmodeldb.info/models/2x-AnimeJaNai-v2-SuperUltraCompact"> 2x_AnimeJaNai v2 SuperUltraCompact (2x)</a> by the database <br/>
+- <a href="https://openmodeldb.info/models/2x-sudo-RealESRGAN-Dropout"> sudo RealESRGAN2x Dropout</a> by sudo rm -rf / --no-preserve-root#8353 <br/>
 
 ncnn implementation of SPAN, Swift Parameter-free Attention Network for Efficient Super-Resolution
 
